@@ -1,10 +1,21 @@
 <?php
 function check_main( $theme ) {
-	global $themechecks;
-
+	global $themechecks, $data, $themename;
+	$themename = $theme;
 	$theme = get_theme_root( $theme ) . "/$theme";
 	$files = listdir( $theme );
 	$data = get_theme_data( $theme . '/style.css' );
+	if ( $data[ 'Template' ] ) {
+		// This is a child theme, so we need to pull files from the parent, which HAS to be installed.
+		$parent = get_theme_root( $data[ 'Template' ] ) . '/' . $data['Template'];
+		if ( !get_theme_data( $parent . '/style.css' ) ) { // This should never happen but we will check while were here!
+			echo '<h2>Parent theme <strong>' . $data[ 'Template' ] . ' not found! You have to have parent AND child-theme installed!';
+			return;
+		}
+		$parent_data = get_theme_data( $parent . '/style.css' );
+		$themename = basename( $parent );
+		$files = array_merge( listdir( $parent ), $files );
+	}
 
 	if ( $files ) {
 		foreach( $files as $key => $filename ) {
@@ -21,132 +32,51 @@ function check_main( $theme ) {
 
 		// run the checks
 		$failed = !run_themechecks($php, $css, $other);
-		?>
-		<style type="text/css">
-		.tc-box {
-		padding:10px 0;
-		border-top:1px solid #ccc;
-		border-bottom: 1px solid #ccc;
-		}
 
-		.tc-warning, .tc-required, .tc-fail {
-			color:red;
-		}
-
-		.tc-recommended, .tc-pass {
-			color: green;
-		}
-
-		.tc-info {
-			color: blue;
-		}
-
-		.tc-grep span {
-			background: yellow;
-		}
-
-		.tc-data {
-			float: left;
-			width: 80px;
-		}
-
-		.tc-success {
-		}
-		</style>
-		<?php
 		global $checkcount;
-		tc_form();
 
 		// second loop, to display the errors
+		echo '<h2>' . __( 'Theme Info', 'themecheck' ) . ': </h2>';
+		echo '<div class="theme-info">';
+		echo ( !empty( $data[ 'Title' ] ) ) ? '<p><label>' . __( 'Title', 'themecheck' ) . '</label><span class="info">' . $data[ 'Title' ] . '</span></p>' : '';
+		echo ( !empty( $data[ 'Version' ] ) ) ? '<p><label>' . __( 'Version', 'themecheck' ) . '</label><span class="info">' . $data[ 'Version' ] . '</span></p>' : '';
+		echo ( !empty( $data[ 'AuthorName' ] ) ) ? '<p><label>' . __( 'Author', 'themecheck' ) . '</label><span class="info">' . $data[ 'AuthorName' ] . '</span></p>' : '';
+		echo ( !empty( $data[ 'AuthorURI' ] ) ) ? '<p><label>' . __( 'Author URI', 'themecheck' ) . '</label><span class="info"><a href="' . $data[ 'AuthorURI' ] . '">' . $data[ 'AuthorURI' ] . '</a>' . '</span></p>' : '';
+		echo ( !empty( $data[ 'URI' ] ) ) ? '<p><label>' . __( 'Theme URI', 'themecheck' ) . '</label><span class="info"><a href="' . $data[ 'URI' ] . '">' . $data[ 'URI' ] . '</a>' . '</span></p>' : '';
+		echo ( !empty( $data[ 'License' ] ) ) ? '<p><label>' . __( 'License', 'themecheck' ) . '</label><span class="info">' . $data[ 'License' ] . '</span></p>' : '';
+		echo ( !empty( $data[ 'License URI' ] ) ) ? '<p><label>' . __( 'LicenseURI', 'themecheck' ) . '</label><span class="info">' . $data[ 'License URI' ] . '</span></p>' : '';
+		echo ( !empty( $data[ 'Tags' ] ) ) ? '<p><label>' . __( 'Tags', 'themecheck' ) . '</label><span class="info">' . implode( $data[ 'Tags' ], ', ') . '</span></p>' : '';
+		echo ( !empty( $data[ 'Description' ] ) ) ? '<p><label>' . __( 'Description', 'themecheck' ) . '</label><span class="info">' . $data[ 'Description' ] . '</span></p>' : '';
 
-		echo '<strong>' . __( 'Theme Info', 'theme-check' ) . ': </strong>';
-		echo '<br /><span class="tc-data">' . __( 'Title', 'theme-check' ) . '</span>: ' . $data[ 'Title' ];
-		echo '<br /><span class="tc-data">' . __( 'Version', 'theme-check' ) . '</span>: ' . $data[ 'Version' ];
-		echo '<br /><span class="tc-data">' . __( 'Author', 'theme-check' ) . '</span>: ' . $data[ 'AuthorName' ];
-		echo '<br /><span class="tc-data">' . __( 'Author URI', 'theme-check' ) . '</span>: <a href="' . $data[ 'AuthorURI' ] . '">' . $data[ 'AuthorURI' ] . '</a>';
-		echo '<br /><span class="tc-data">' . __( 'Theme URI', 'theme-check' ) . '</span>: <a href="' . $data[ 'URI' ] . '">' . $data[ 'URI' ] . '</a>';
-		echo '<br /><span class="tc-data">' . __( 'Description', 'theme-check' ) . '</span>: ' . $data[ 'Description' ];
-		if ( $data[ 'Template' ] ) echo '<br />' . __( 'This is a child theme. The parent theme is', 'theme-check' ) . ': ' . $data[ 'Template' ];
-
+		if ( $data[ 'Template' ] ) {
+		if ( $data['Template Version'] > $parent_data['Version'] ) {
+			echo "<p>This child theme requires at least version <strong>{$data['Template Version']}</strong> of theme <strong>{$parent_data['Title']}</strong> to be installed. You only have <strong>{$parent_data['Version']}</strong> please update the parent theme.</p>";
+		}
+			echo '<p>' . __( 'This is a child theme. The parent theme is', 'themecheck' ) . ': <strong>' . $data[ 'Template' ] . '</strong>. These files have been included automatically!</p>';
+			if ( empty( $data['Template Version'] ) ) {
+				echo '<p>Child theme does not have the <strong>Template Version</strong> tag in style.css.</p>';
+			} else {
+				echo ( $data['Template Version'] < $parent_data['Version'] ) ? "<p>Child theme is only tested up to version {$data['Template Version']} of {$parent_data['Title']} breakage may occur! {$parent_data['Title']} installed version is {$parent_data['Version']}</p>" : '';
+			}
+		 }
+	    echo '</div><!-- .theme-info-->';
 		$plugins = get_plugins( '/theme-check' );
 		$version = explode( '.', $plugins['theme-check.php']['Version'] );
-		echo '<br /><br />Running <strong>' . $checkcount . '</strong> tests against <strong>' . $data[ 'Title' ] . '</strong> using Guidelines Version: <strong>'. $version[0] . '</strong> Plugin revision: <strong>'. $version[1] .'</strong><br />';
-
+		echo '<p>Running <strong>' . $checkcount . '</strong> tests against <strong>' . $data[ 'Title' ] . '</strong> using Guidelines Version: <strong>'. $version[0] . '</strong> Plugin revision: <strong>'. $version[1] .'</strong></p>';
 		$results = display_themechecks();
 		$success = true;
 		if (strpos( $results, 'WARNING') !== false) $success = false;
 		if (strpos( $results, 'REQUIRED') !== false) $success = false;
 		if ( $success === false ) {
-			echo '<h3>' . __( 'One or more errors were found for ', 'themecheck' ) . $data[ 'Title' ] . '.</h3>';
+			echo '<h2>' . __( 'One or more errors were found for ', 'themecheck' ) . $data[ 'Title' ] . '.</h2>';
 		} else {
 			echo '<h2>' . $data[ 'Title' ] . __( ' passed the tests', 'themecheck' ) . '</h2>';
 			tc_success();
 		}
-		if ( !defined( 'WP_DEBUG' ) || WP_DEBUG == false ) echo '<div class="updated"><span class="tc-fail">WARNING</span> ' . __( '<strong>WP_DEBUG is not enabled!</strong> Please test your theme with <a href="http://codex.wordpress.org/Editing_wp-config.php">debug enabled</a> before you upload!</div>', 'theme-check' );
-
+		if ( !defined( 'WP_DEBUG' ) || WP_DEBUG == false ) echo '<div class="updated"><span class="tc-fail">WARNING</span> ' . __( '<strong>WP_DEBUG is not enabled!</strong> Please test your theme with <a href="http://codex.wordpress.org/Editing_wp-config.php">debug enabled</a> before you upload!</div>', 'themecheck' );
 		echo '<div class="tc-box">';
 		echo '<ul class="tc-result">';
 		echo $results;
 		echo '</ul></div>';
 	}
-}
-
-function listdir( $start_dir='.' ) {
-
-  $files = array();
-  if ( is_dir( $start_dir ) ) {
-    $fh = opendir( $start_dir );
-    while ( ( $file = readdir( $fh ) ) !== false ) {
-      # loop through the files, skipping . and .., and recursing if necessary
-      if ( strcmp( $file, '.' )==0 || strcmp( $file, '..' )==0 ) continue;
-      $filepath = $start_dir . '/' . $file;
-      if ( is_dir( $filepath ) )
-        $files = array_merge( $files, listdir( $filepath ) );
-      else
-        array_push( $files, $filepath );
-    }
-    closedir( $fh );
-  } else {
-    # false if the function was called with an invalid non-directory argument
-    $files = false;
-  }
-  return $files;
-}
-
-function tc_success() {
-echo '<div class="tc-success">Now your theme has passed the basic tests you need to check it properly using the test data before you upload to the WordPress Themes Directory.<br />
-<br />
-Make sure to review the guidelines at <a href="http://codex.wordpress.org/Theme_Review">Theme Review</a> before uploading a Theme.
-<h3>Codex Links</h3>
-<p>
-<a href="http://codex.wordpress.org/Theme_Development">Theme Development</a><br />
-<a href="http://wordpress.org/support/forum/5">Themes and Templates forum</a><br />
-<a href="http://codex.wordpress.org/Theme_Unit_Test">Theme Unit Tests</a>
-</p>
-<h3>Contact</h3>
-<p>Theme-Check is maintained by <a href="http://profiles.wordpress.org/users/pross/">Pross</a> and <a href="http://profiles.wordpress.org/users/otto42/">Otto42</a><br />
-If you think you have found a bug please report it in the <a href="http://wordpress.org/tags/theme-check?forum_id=10">forums</a> or create a <a href="https://github.com/Pross/theme-check/issues">ticket on Github</a>.
-</p>
-<form action="https://www.paypal.com/cgi-bin/webscr" method="post">
-<input type="hidden" name="cmd" value="_s-xclick">
-<input type="hidden" name="hosted_button_id" value="2V7F4QYMWMBL6">
-<input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donate_SM.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
-<img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
-</form>
-</div>
-';
-}
-
-function tc_form() {
-	$themes = get_themes();
-	echo '<form action="themes.php?page=themecheck" method="POST">';
-	echo '<select name="themename">';
-	foreach($themes as $name => $location) {
-		echo '<option ';
-		if ( basename(TEMPLATEPATH) === $location['Template'] ) echo 'selected ';
-		echo 'value="' . $location['Template'] . '">' . $name . '</option>';
-	}
-	echo '</select>';
-	echo '<input type="submit" value="' . __( 'Check it!', 'theme-check' ) . '" />';
-	echo '</form>';
 }
