@@ -1,4 +1,4 @@
-=== Theme-Check ===
+=== Theme Check ===
 Contributors: pross, Otto42
 Author URI: http://www.pross.org.uk
 Plugin URL: http://www.pross.org.uk/plugins
