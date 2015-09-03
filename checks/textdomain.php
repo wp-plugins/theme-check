@@ -81,7 +81,14 @@ class TextDomainCheck implements themecheck {
 						$found_domain = false;
 					} elseif (T_CONSTANT_ENCAPSED_STRING == $id) {
 						if ($in_func && $args_started) {
-							if ($this->rules[$func][$args_count] == 'domain') {
+							if (! isset( $this->rules[$func][$args_count] ) ) {
+								// avoid a warning when too many arguments are in a function, cause a fail case
+								$new_args = $args;
+								$new_args[] = $text;
+								$this->error[] = '<span class="tc-lead tc-warning">' . __( 'WARNING', 'theme-check' ) . '</span>: ' 
+								. sprintf ( __( 'Found a translation function that has an incorrect number of arguments. Function <strong>%1$s</strong>, with the arguments <strong>%2$s</strong>', 'theme-check' ), 
+								$func, implode(', ',$new_args) );
+							} else if ($this->rules[$func][$args_count] == 'domain') {
 								// strip quotes from the domain, avoids 'domain' and "domain" not being recognized as the same
 								$text = str_replace(array('"', "'"), '', $text);
 								$domains[] = $text;
@@ -107,7 +114,7 @@ class TextDomainCheck implements themecheck {
 						if (!$found_domain) {
 							$this->error[] = '<span class="tc-lead tc-warning">' . __( 'WARNING', 'theme-check' ) . '</span>: ' 
 							. sprintf ( __( 'Found a translation function that is missing a text-domain. Function <strong>%1$s</strong>, with the arguments <strong>%2$s</strong>', 'theme-check' ), 
-							$func, implode(',',$args) );
+							$func, implode(', ',$args) );
 						}
 						$in_func = false;
 						$func='';
@@ -119,7 +126,7 @@ class TextDomainCheck implements themecheck {
 		}
 		
 		$domains = array_unique($domains);
-		$domainlist = implode( ',', $domains );
+		$domainlist = implode( ', ', $domains );
 		$domainscount = count($domains);
 		
 		if ( $domainscount > 1 ) {
